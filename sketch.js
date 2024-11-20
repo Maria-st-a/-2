@@ -1,7 +1,8 @@
 let font;
 let tSize = 280; // Text Size
-let tposX, tposY; // X and Y position of text
-let pointCount = 4; // Increased sample factor to reduce the number of particles
+let tposX = 280; // X position of text
+let tposY = 280; // Y position of text
+let pointCount = 0.1; // Reduced Point count for fewer particles
 
 let speed = 10; // Speed of the particles
 let comebackSpeed = 100; // Lower the number, less interaction
@@ -18,15 +19,14 @@ function preload() {
 
 function setup() {
   createCanvas(windowWidth, windowHeight);
-
-  // Adjust text position relative to the window size
+  
   tposX = width / 2 - tSize * 1.2;
   tposY = height / 2 - tSize / 2.5;
-
+  
   textFont(font);
 
   let points = font.textToPoints("HEY?", tposX, tposY, tSize, {
-    sampleFactor: pointCount, // This controls the number of points
+    sampleFactor: pointCount, // Reduced sample factor
   });
 
   // Initialize particles at the text points
@@ -36,7 +36,7 @@ function setup() {
     let textPoint = new Interact(
       pt.x,
       pt.y,
-      speed,   // Keep the speed
+      speed,
       dia,
       randomPos,
       comebackSpeed,
@@ -59,7 +59,6 @@ function draw() {
   }
 }
 
-// Adjust particles' behavior and movement
 function Interact(x, y, m, d, t, s, di, p) {
   if (t) {
     this.home = createVector(random(width), random(height));
@@ -112,4 +111,58 @@ Interact.prototype.arrive = function (target) {
   let d = desired.mag();
   let speed = this.maxSpeed;
   if (d < this.come) {
-  
+    speed = map(d, 0, this.come, 0, this.maxSpeed);
+  }
+  desired.setMag(speed);
+  let steer = p5.Vector.sub(desired, this.vel);
+  return steer;
+};
+
+Interact.prototype.flee = function (target) {
+  let desired = p5.Vector.sub(target, this.pos);
+  let d = desired.mag();
+
+  if (d < this.dia) {
+    desired.setMag(this.maxSpeed);
+    desired.mult(this.dir);
+    let steer = p5.Vector.sub(desired, this.vel);
+    steer.limit(this.maxForce);
+    return steer;
+  } else {
+    return createVector(0, 0);
+  }
+};
+
+// Function to change opacity based on mouse distance
+Interact.prototype.changeOpacity = function (mx, my) {
+  let mousePos = createVector(mx, my);
+  let d = dist(this.pos.x, this.pos.y, mousePos.x, mousePos.y);
+
+  // Check if the particle is within interaction distance
+  if (d < this.dia) {
+    // Gradually reduce opacity as it gets closer to the mouse
+    this.opacity = map(d, 0, this.dia, 255, 50); // 255 = fully visible, 50 = less visible
+  } else {
+    // Restore opacity to full when the mouse is away
+    this.opacity = 255;
+  }
+};
+
+Interact.prototype.update = function () {
+  this.pos.add(this.vel);
+  this.vel.add(this.acc);
+  this.acc.mult(0);
+};
+
+Interact.prototype.show = function () {
+  // Set the fill color with the opacity
+  fill(this.color.levels[0], this.color.levels[1], this.color.levels[2], this.opacity);
+  noStroke();  // Remove stroke for a solid fill
+
+  // Use original size for the circles
+  ellipse(this.pos.x, this.pos.y, 16, 16); // Use the original circle size
+};
+
+function windowResized() {
+  resizeCanvas(windowWidth, windowHeight);
+}
